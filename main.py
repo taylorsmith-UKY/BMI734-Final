@@ -62,8 +62,11 @@ for i, (train_idx, val_idx) in enumerate(skf.split(data, split_labels)):
     y_val = labels[val_idx]
 
     model = get_model(data.shape[1:])
-    model.fit(X_train, y_train, batch_size=batch_size, epochs=n_epochs,
-              callbacks=[mcp_save,], validation_data=(X_val, y_val))
-
+    history = model.fit(X_train, y_train, batch_size=batch_size, epochs=n_epochs,
+              callbacks=[mcp_save, ], validation_data=(X_val, y_val))
+    loss = history.history['loss']
+    loss = np.array(loss)
+    lossFilename = data_path+'CNN_Model_fold' + str(i+1) + '.txt'
+    np.savetxt(lossFilename, loss, fmt='%.4f')
     print(model.evaluate(X_val, y_val))
 
