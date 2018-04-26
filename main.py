@@ -10,7 +10,7 @@ data_path = 'data/w_zeroes/'
 base_fname = 'ssx'
 n_ex = 3815
 
-n_epochs = 50
+n_epochs = 20
 n_splits = 10
 batch_size = 32
 # -------------------------------------------------------------------------------- #
@@ -66,7 +66,7 @@ for i, (train_idx, val_idx) in enumerate(skf.split(data, split_labels)):
               callbacks=[mcp_save, ], validation_data=(X_val, y_val))
     loss = history.history['loss']
     loss = np.array(loss)
-    lossFilename = data_path+'CNN_Model_fold' + str(i+1) + '.txt'
+    lossFilename = data_path+'CNN_Model_fold' + str(i+1) + '_loss.txt'
     np.savetxt(lossFilename, loss, fmt='%.4f')
     print(model.evaluate(X_val, y_val))
 
