@@ -25,6 +25,7 @@ data = np.expand_dims(data, -1)
 
 # Load labels and make categorical (i.e. if 2 labels, each label is of form (0, 1) or (1, 0)
 labels = np.loadtxt(data_path+'labels.txt', dtype=int)
+split_labels = labels
 labels = cat(labels, 2)
 
 
@@ -47,10 +48,10 @@ def get_model(in_shape):
 
 
 # Stratify data into separate folds for cross-validation
-folds = list(StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=1).split(data, labels))
+skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=1)
 
 
-for i, (train_idx, val_idx) in enumerate(folds):
+for i, (train_idx, val_idx) in enumerate(skf.split(data, split_labels)):
     print('Evaluating on Fold ' + str(i+1) + ' of ' + str(n_splits) + '.')
     mcp_save = ModelCheckpoint(data_path+'CNN_Model_fold' + str(i+1) + '.h5',
                                save_best_only=True,monitor='val_loss', mode='min')
@@ -62,6 +63,7 @@ for i, (train_idx, val_idx) in enumerate(folds):
 
     model = get_model(data.shape[1:])
     model.fit(X_train, y_train, batch_size=batch_size, epochs=n_epochs,
-              callbacks=mcp_save, validation_data=(X_val, y_val))
+              callbacks=[mcp_save,], validation_data=(X_val, y_val))
 
     print(model.evaluate(X_val, y_val))
+
