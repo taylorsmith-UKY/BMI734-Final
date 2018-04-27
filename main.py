@@ -4,7 +4,8 @@ from keras.layers import Input, Conv2D, MaxPooling2D, Dense, Flatten
 from keras.callbacks import ModelCheckpoint
 from keras.utils import to_categorical as cat
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import precision_score, recall_score, f1_score, precision_recall_curve, average_precision_score
+from sklearn.metrics import precision_score, recall_score, f1_score,\
+     precision_recall_curve, average_precision_score, roc_curve, auc
 import matplotlib.pyplot as plt
 import os
 
@@ -17,7 +18,7 @@ n_ex = 3815
 
 # Training params
 n_epochs = 250          # Number of epochs to train each split
-n_splits = 5            # Number of splits for cross-validation
+n_splits = 10            # Number of splits for cross-validation
 batch_size = 32         # Training batch size
 # -------------------------------------------------------------------------------- #
 
@@ -73,38 +74,40 @@ with open(model_path + 'model_summary.txt','w') as fh:
     # Pass the file handle in as a lambda function to make it callable
     model.summary(print_fn=lambda x: fh.write(x + '\n'))
 
-f = open(model_path + 'evaluation.txt', 'w')
-f.write('Fold_Num,Precision,Recall,F1\n')
 for i, (train_idx, val_idx) in enumerate(skf.split(data, split_labels)):
     print('Evaluating on Fold ' + str(i+1) + ' of ' + str(n_splits) + '.')
+
+    # Checkpoint to save model params
     mcp_save = ModelCheckpoint(model_path+'trained_model_fold' + str(i+1) + '.h5',
                                save_best_only=True, monitor='val_loss', mode='min')
 
+    # Get the training and test sets
     X_train = data[train_idx]
     y_train = labels[train_idx]
     X_val = data[val_idx]
     y_val = labels[val_idx]
-    y_eval = split_labels[val_idx]
 
+    # Load and fit the model
     model = get_model(data.shape[1:])
     history = model.fit(X_train, y_train, batch_size=batch_size, epochs=n_epochs,
                         callbacks=[mcp_save, ], validation_data=(X_val, y_val))
     loss = history.history['loss']
     loss = np.array(loss)
-    plt.figure()
+
+    # Plot the loss vs. number of epochs
+    fig = plt.figure()
     plt.plot(np.arange(len(loss))+1, loss)
     plt.ylabel('Validation Loss')
     plt.xlabel('Epoch Number')
     plt.title('Validation Loss vs. Epoch\nFold ' + str(i+1))
     plt.savefig(model_path + 'fold' + str(i+1) + '_loss.png')
-    y_pred = model.predict(X_val)
-    y_pred = y_pred[:, 0] < 0.5
-    prec = precision_score(y_eval, y_pred)
-    rec = recall_score(y_eval, y_pred)
-    f1 = f1_score(y_eval, y_pred)
-    f.write('%d,%.4f,%.4f,%.4f\n' % (i+1, prec, rec, f1))
+    plt.close(fig)
 
-    pcurve, rcurve, _ = precision_recall_curve(y_eval, y_pred)
+    # Plot the precision vs. recall curve
+    y_pred = model.predict(X_val)
+    pcurve, rcurve, _ = precision_recall_curve(y_val[:, 0], y_pred[:, 0])
+    fig = plt.figure(figsize=(8, 4))
+    plt.subplot(121)
     plt.step(rcurve, pcurve, color='b', alpha=0.2,
              where='post')
     plt.fill_between(rcurve, pcurve, where=None, alpha=0.2,
@@ -113,9 +116,20 @@ for i, (train_idx, val_idx) in enumerate(skf.split(data, split_labels)):
     plt.ylabel('Precision')
     plt.ylim([0.0, 1.05])
     plt.xlim([0.0, 1.0])
-    plt.title('Fold ' + str(i+1) + ' Precision-Recall curve: AP=%0.2f' % average_precision_score(y_eval, y_pred))
-    plt.savefig(model_path + 'fold' + str(i+1) + '_PRcurve.png')
-    plt.close()
+    plt.title('Precision-Recall Curve: AP=%0.2f' % average_precision_score(y_val[:, 0], y_pred[:, 0]))
 
-f.close()
+    # Plot ROC curve
+    fpr, tpr, _ = roc_curve(y_val[:, 0], y_pred[:, 0])
+    roc_auc = auc(fpr, tpr)
+    plt.subplot(122)
+    plt.plot(fpr, tpr)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC Curve (area = %0.2f)' % roc_auc)
+    plt.legend(loc="lower right")
+    plt.tight_layout()
+    plt.savefig(model_path + 'fold' + str(i + 1) + '_evaluation.png')
+
 
