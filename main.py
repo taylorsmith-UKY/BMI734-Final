@@ -31,19 +31,29 @@ if not os.path.exists(model_path):
 data = []
 for i in range(n_ex):
     data.append(np.loadtxt(data_path+base_fname+str(i)+'.txt'))
+data = np.array(data)
 
-same_length = False
-if np.all([len(data[x]) == len(data[x+1]) for x in range(n_ex - 1)]):
-    same_length = True
-    data = np.array(data)
+# Add third dimension so Keras doesn't complain
+data = np.expand_dims(data, -1)
+shp = data.shape[1:]
 
-    # Add third dimension so Keras doesn't complain
-    data = np.expand_dims(data, -1)
-    shp = data.shape[1:]
-
-
-# Load labels and make categorical (i.e. if 2 labels, each label is of form (0, 1) or (1, 0)
+# Load labels
 labels = np.loadtxt(data_path+'labels.txt', dtype=int)[:n_ex]
+
+# Stratify data
+# If many more negatives than positives, select a random subset of full data
+pos_idx = np.where(labels == 1)[0]
+if (len(pos_idx) < (0.5 * n_ex)):
+    neg_idx = np.setdiff1d(np.arange(n_ex), pos_idx)
+    neg_sel = np.random.permutation(neg_idx)[:len(pos_idx)]
+    sel = np.sort(np.union1d(pos_idx, neg_sel))
+    full_data = data
+    full_labels = labels
+
+    data = data[sel]
+    labels = labels[sel]
+
+# Make labels categorical (i.e. if 2 labels, each label is of form (0, 1) or (1, 0)
 split_labels = labels
 labels = cat(labels, 2)
 
@@ -131,5 +141,4 @@ for i, (train_idx, val_idx) in enumerate(skf.split(data, split_labels)):
     plt.legend(loc="lower right")
     plt.tight_layout()
     plt.savefig(model_path + 'fold' + str(i + 1) + '_evaluation.png')
-
-
+    plt.close(fig)
