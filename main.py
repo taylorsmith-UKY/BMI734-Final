@@ -11,13 +11,13 @@ import os
 # ------------------------------- PARAMETERS ------------------------------------- #
 # Data params
 dataset = 'w_zeroes'    # Dataset selection
-modelName = 'cnnA'      # Directory name for saved model information
+modelName = 'cnnA_250'      # Directory name for saved model information
 base_fname = 'ssx'      # filenames ssx#.txt
 n_ex = 3815
 
 # Training params
-n_epochs = 50           # Number of epochs to train each split
-n_splits = 10           # Number of splits for cross-validation
+n_epochs = 250          # Number of epochs to train each split
+n_splits = 5            # Number of splits for cross-validation
 batch_size = 32         # Training batch size
 # -------------------------------------------------------------------------------- #
 
@@ -39,7 +39,6 @@ if np.all([len(data[x]) == len(data[x+1]) for x in range(n_ex - 1)]):
     # Add third dimension so Keras doesn't complain
     data = np.expand_dims(data, -1)
     shp = data.shape[1:]
-else:
 
 
 # Load labels and make categorical (i.e. if 2 labels, each label is of form (0, 1) or (1, 0)
