@@ -11,14 +11,13 @@ import os
 # ------------------------------- PARAMETERS ------------------------------------- #
 # Data params
 dataset = 'w_zeroes'    # Dataset selection
-modelName = 'test'      # Directory name for saved model information
-
+modelName = 'cnnA'      # Directory name for saved model information
 base_fname = 'ssx'      # filenames ssx#.txt
 n_ex = 3815
 
 # Training params
-n_epochs = 5           # Number of epochs to train each split
-n_splits = 8           # Number of splits for cross-validation
+n_epochs = 50           # Number of epochs to train each split
+n_splits = 10           # Number of splits for cross-validation
 batch_size = 32         # Training batch size
 # -------------------------------------------------------------------------------- #
 
@@ -31,15 +30,22 @@ if not os.path.exists(model_path):
 data = []
 for i in range(n_ex):
     data.append(np.loadtxt(data_path+base_fname+str(i)+'.txt'))
-data = np.array(data)
-# Add third dimension of 1 so Keras doesn't complain
-data = np.expand_dims(data, -1)
+
+same_length = False
+if np.all([len(data[x]) == len(data[x+1]) for x in range(n_ex - 1)]):
+    same_length = True
+    data = np.array(data)
+
+    # Add third dimension so Keras doesn't complain
+    data = np.expand_dims(data, -1)
+    shp = data.shape[1:]
+else:
+
 
 # Load labels and make categorical (i.e. if 2 labels, each label is of form (0, 1) or (1, 0)
 labels = np.loadtxt(data_path+'labels.txt', dtype=int)[:n_ex]
 split_labels = labels
 labels = cat(labels, 2)
-
 
 # Get Model
 def get_model(in_shape):
@@ -62,7 +68,7 @@ def get_model(in_shape):
 # Stratify data into separate folds for cross-validation
 skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=1)
 
-model = get_model(data.shape[1:])
+model = get_model(shp)
 # Open the file
 with open(model_path + 'model_summary.txt','w') as fh:
     # Pass the file handle in as a lambda function to make it callable
