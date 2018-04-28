@@ -15,11 +15,11 @@ import os
 dataset = 'w_zeroes'    # Dataset selection
 modelSel = 'B'
 base_fname = 'ssx'      # filenames ssx#.txt
-optName = ('SGD', 0.9)
+optName = ('Adam', 0.0)
 n_ex = 3815
 
 # Training params
-n_epochs = 250          # Number of epochs to train each split
+n_epochs = 75          # Number of epochs to train each split
 n_splits = 10            # Number of splits for cross-validation
 batch_size = 32         # Training batch size
 # -------------------------------------------------------------------------------- #
@@ -80,7 +80,7 @@ def get_model(in_shape):
         flat = Dense(128, activation='sigmoid', name='Dense1')(flat)
     x = Dense(2, activation='softmax', name='predictions')(flat)
     my_model = Model(input=inputs, output=x)
-    if optName[0] == 'SGD':
+    if 'SGD' in optName[0]:
         opt = SGD(momentum=optName[1])
     elif optName[0] == 'Adam':
         opt = Adam()
