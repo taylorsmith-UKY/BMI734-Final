@@ -3,24 +3,27 @@ from keras.models import Model
 from keras.layers import Input, Conv2D, MaxPooling2D, Dense, Flatten
 from keras.callbacks import ModelCheckpoint
 from keras.utils import to_categorical as cat
+from keras.optimizers import SGD, Adam
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import precision_score, recall_score, f1_score,\
-     precision_recall_curve, average_precision_score, roc_curve, auc
+from sklearn.metrics import precision_recall_curve, average_precision_score,\
+                            roc_curve, auc
 import matplotlib.pyplot as plt
 import os
 
 # ------------------------------- PARAMETERS ------------------------------------- #
 # Data params
 dataset = 'w_zeroes'    # Dataset selection
-modelName = 'cnnB_50'      # Directory name for saved model information
+modelSel = 'B'
 base_fname = 'ssx'      # filenames ssx#.txt
+optName = ('SGD', 0.9)
 n_ex = 3815
 
 # Training params
-n_epochs = 50          # Number of epochs to train each split
-n_splits = 5            # Number of splits for cross-validation
+n_epochs = 250          # Number of epochs to train each split
+n_splits = 10            # Number of splits for cross-validation
 batch_size = 32         # Training batch size
 # -------------------------------------------------------------------------------- #
+modelName = 'cnn' + modelSel + '_%d_%s' % (n_epochs, optName[0])
 
 data_path = 'data/' + dataset + '/'
 model_path = 'models/' + dataset + '/' + modelName + '/'
@@ -46,7 +49,7 @@ labels = np.loadtxt(data_path+'labels.txt', dtype=int)[:n_ex]
 # Stratify data
 # If many more negatives than positives, select a random subset of full data
 pos_idx = np.where(labels == 1)[0]
-if (len(pos_idx) < (0.5 * n_ex)):
+if len(pos_idx) < (0.5 * n_ex):
     neg_idx = np.setdiff1d(np.arange(n_ex), pos_idx)
     neg_sel = np.random.permutation(neg_idx)[:len(pos_idx)]
     sel = np.sort(np.union1d(pos_idx, neg_sel))
@@ -60,6 +63,7 @@ if (len(pos_idx) < (0.5 * n_ex)):
 split_labels = labels
 labels = cat(labels, 2)
 
+
 # Get Model
 def get_model(in_shape):
     inputs = Input(in_shape, name='Image-Input')
@@ -72,10 +76,15 @@ def get_model(in_shape):
                     padding='same', activation='relu', name='Conv2')(pool_1)
     pool_2 = MaxPooling2D((2, 2), name='Pool2')(conv_2)
     flat = Flatten()(pool_2)
-    fc1 = Dense(128, activation='sigmoid', name='Dense1')(flat)
-    x = Dense(2, activation='softmax', name='predictions')(fc1)
+    if modelSel == 'B':
+        flat = Dense(128, activation='sigmoid', name='Dense1')(flat)
+    x = Dense(2, activation='softmax', name='predictions')(flat)
     my_model = Model(input=inputs, output=x)
-    my_model.compile(loss='binary_crossentropy', optimizer='SGD', )
+    if optName[0] == 'SGD':
+        opt = SGD(momentum=optName[1])
+    elif optName[0] == 'Adam':
+        opt = Adam()
+    my_model.compile(loss='binary_crossentropy', optimizer=opt)
     return my_model
 
 
@@ -84,7 +93,7 @@ skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=1)
 
 model = get_model(shp)
 # Open the file
-with open(model_path + 'model_summary.txt','w') as fh:
+with open(model_path + 'model_summary.txt', 'w') as fh:
     # Pass the file handle in as a lambda function to make it callable
     model.summary(print_fn=lambda x: fh.write(x + '\n'))
 
@@ -105,15 +114,17 @@ for i, (train_idx, val_idx) in enumerate(skf.split(data, split_labels)):
     model = get_model(data.shape[1:])
     history = model.fit(X_train, y_train, batch_size=batch_size, epochs=n_epochs,
                         callbacks=[mcp_save, ], validation_data=(X_val, y_val))
-    loss = history.history['loss']
-    loss = np.array(loss)
+    loss = np.array(history.history['loss'])
+    val_loss = np.array(history.history['val_loss'])
 
     # Plot the loss vs. number of epochs
     fig = plt.figure()
-    plt.plot(np.arange(len(loss))+1, loss)
-    plt.ylabel('Validation Loss')
+    plt.plot(np.arange(len(loss))+1, loss, color='blue', label='Training Loss')
+    plt.plot(np.arange(len(val_loss)) + 1, val_loss, color='red', label='Validation Loss')
+    plt.ylabel('Loss Value')
     plt.xlabel('Epoch Number')
-    plt.title('Validation Loss vs. Epoch\nFold ' + str(i+1))
+    plt.title('Training/Validation Loss vs. Epoch\nFold ' + str(i+1))
+    plt.legend(loc='upper right')
     plt.savefig(model_path + 'fold' + str(i+1) + '_loss.png')
     plt.close(fig)
 
@@ -146,3 +157,4 @@ for i, (train_idx, val_idx) in enumerate(skf.split(data, split_labels)):
     plt.tight_layout()
     plt.savefig(model_path + 'fold' + str(i + 1) + '_evaluation.png')
     plt.close(fig)
+
