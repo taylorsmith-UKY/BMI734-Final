@@ -12,23 +12,26 @@ import os
 # ------------------------------- PARAMETERS ------------------------------------- #
 # Data params
 dataset = 'w_zeroes'    # Dataset selection
-modelName = 'cnnA_250'      # Directory name for saved model information
+modelName = 'cnnB_50'      # Directory name for saved model information
 base_fname = 'ssx'      # filenames ssx#.txt
 n_ex = 3815
 
 # Training params
-n_epochs = 250          # Number of epochs to train each split
-n_splits = 10            # Number of splits for cross-validation
+n_epochs = 50          # Number of epochs to train each split
+n_splits = 5            # Number of splits for cross-validation
 batch_size = 32         # Training batch size
 # -------------------------------------------------------------------------------- #
 
 data_path = 'data/' + dataset + '/'
 model_path = 'models/' + dataset + '/' + modelName + '/'
+print('Results will be stored in: ' + model_path)
 if not os.path.exists(model_path):
     os.makedirs(model_path)
 
 # Load inputs
 data = []
+print('Loading data...')
+
 for i in range(n_ex):
     data.append(np.loadtxt(data_path+base_fname+str(i)+'.txt'))
 data = np.array(data)
@@ -69,7 +72,8 @@ def get_model(in_shape):
                     padding='same', activation='relu', name='Conv2')(pool_1)
     pool_2 = MaxPooling2D((2, 2), name='Pool2')(conv_2)
     flat = Flatten()(pool_2)
-    x = Dense(2, activation='softmax', name='predictions')(flat)
+    fc1 = Dense(128, activation='sigmoid', name='Dense1')(flat)
+    x = Dense(2, activation='softmax', name='predictions')(fc1)
     my_model = Model(input=inputs, output=x)
     my_model.compile(loss='binary_crossentropy', optimizer='SGD', )
     return my_model
