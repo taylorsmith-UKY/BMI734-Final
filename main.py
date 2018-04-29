@@ -13,13 +13,13 @@ import os
 # ------------------------------- PARAMETERS ------------------------------------- #
 # Data params
 dataset = 'w_zeroes'    # Dataset selection
-modelSel = 'B'
+modelSel = 'A'
 base_fname = 'ssx'      # filenames ssx#.txt
-optName = ('Adam', 0.0)
+optName = ('SGD_nm', 0.0)
 n_ex = 3815
 
 # Training params
-n_epochs = 75          # Number of epochs to train each split
+n_epochs = 250          # Number of epochs to train each split
 n_splits = 10            # Number of splits for cross-validation
 batch_size = 32         # Training batch size
 # -------------------------------------------------------------------------------- #
