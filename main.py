@@ -6,7 +6,8 @@ from keras.utils import to_categorical as cat
 from keras.optimizers import SGD, Adam
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import precision_recall_curve, average_precision_score,\
-                            roc_curve, auc
+                            roc_curve, auc, precision_score, recall_score,\
+                            accuracy_score, f1_score
 import matplotlib.pyplot as plt
 import os
 
@@ -19,7 +20,7 @@ optName = ('SGD_nm', 0.0)
 n_ex = 3815
 
 # Training params
-n_epochs = 250          # Number of epochs to train each split
+n_epochs = 125          # Number of epochs to train each split
 n_splits = 10            # Number of splits for cross-validation
 batch_size = 32         # Training batch size
 # -------------------------------------------------------------------------------- #
@@ -88,6 +89,25 @@ def get_model(in_shape):
     return my_model
 
 
+def perf_measure(y_actual, y_hat):
+    TP = 0
+    FP = 0
+    TN = 0
+    FN = 0
+
+    for i in range(len(y_hat)):
+        if y_actual[i]==y_hat[i]==1:
+           TP += 1
+        if y_hat[i]==1 and y_actual[i]!=y_hat[i]:
+           FP += 1
+        if y_actual[i]==y_hat[i]==0:
+           TN += 1
+        if y_hat[i]==0 and y_actual[i]!=y_hat[i]:
+           FN += 1
+
+    return TP, FP, TN, FN
+
+
 # Stratify data into separate folds for cross-validation
 skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=1)
 
@@ -97,6 +117,8 @@ with open(model_path + 'model_summary.txt', 'w') as fh:
     # Pass the file handle in as a lambda function to make it callable
     model.summary(print_fn=lambda x: fh.write(x + '\n'))
 
+out = open(model_path + 'summary_stats.csv', 'w')
+out.write('Fold,Accuracy,Precision,Recall,F1,TP,FP,TN,FN\n')
 for i, (train_idx, val_idx) in enumerate(skf.split(data, split_labels)):
     print('Evaluating on Fold ' + str(i+1) + ' of ' + str(n_splits) + '.')
 
@@ -130,6 +152,7 @@ for i, (train_idx, val_idx) in enumerate(skf.split(data, split_labels)):
 
     # Plot the precision vs. recall curve
     y_pred = model.predict(X_val)
+    pred = np.array((y_pred[:, 0] >= 0.5), dtype=int)
     pcurve, rcurve, _ = precision_recall_curve(y_val[:, 0], y_pred[:, 0])
     fig = plt.figure(figsize=(8, 4))
     plt.subplot(121)
@@ -158,3 +181,12 @@ for i, (train_idx, val_idx) in enumerate(skf.split(data, split_labels)):
     plt.savefig(model_path + 'fold' + str(i + 1) + '_evaluation.png')
     plt.close(fig)
 
+    acc = accuracy_score(y_val, pred)
+    prec = precision_score(y_val, pred)
+    rec = recall_score(y_val, pred)
+    f1 = f1_score(y_val, pred)
+
+    tp, fp, tn, fn = perf_measure(y_val, pred)
+
+    out.write('%.4f,%.4f,%.4f,%.4f,%d,%d,%d,%d\n' % (acc, prec, rec, f1, tp, fp, tn, fn))
+out.close()
